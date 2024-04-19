@@ -32,5 +32,5 @@ int create_gui()
         break;
     }
 
-    return 0;
+    return systemPid;
 }
