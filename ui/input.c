@@ -38,6 +38,8 @@ void sigSegvHandler(int signal)
     {
         printf("\t%s\n", symbols[i]);
     }
+
+    free(symbols);
 }
 
 int create_input()
