@@ -7,10 +7,25 @@
 #include <gui.h>
 #include <input.h>
 #include <web_server.h>
+#include <message.h>
+
+static const char *moduleName= "input";
+static pid_t globalPid= -1;
 
 int input()
 {
-    printf("input 프로세스 동작중!\n");
+    struct sigaction sa;
+
+    pMessage(moduleName, globalPid, "Running");
+
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sa.sa_handler = sigSegvHandler;
+
+    if( sigaction(SIGSEGV, &sa, NULL) == -1)
+    {
+        pMessage(moduleName, globalPid, "sigaction() failed");
+    }
 
     while (1)
     {
@@ -31,49 +46,45 @@ void sigSegvHandler(int signal)
     symbols = backtrace_symbols(buffer, size);
     if (symbols == NULL)
     {
-        printf("backtrace_symbols() failed!\n");
+        pMessage(moduleName, globalPid, "backtrace_symbols() failed");
     }
 
     for (int i = 0; i < size; i++)
     {
-        printf("\t%s\n", symbols[i]);
+        printf("[bt]\t%s\n", symbols[i]);
     }
 
     free(symbols);
+    exit(1);
 }
 
 int create_input()
 {
-    pid_t systemPid;
-    const char *name = "input";
-    struct sigaction sa;
+    globalPid= getpid();
+    pMessage(moduleName, globalPid, "Starting");
 
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    sa.sa_handler = sigSegvHandler;
-    if( sigaction(SIGSEGV, &sa, NULL) == -1)
-    {
-        printf("sigaction() failed\n");
-    }
-
-    printf("input 프로세스 생성시작\n");
-
-    switch (systemPid = fork())
+    switch (globalPid = fork())
     {
     case -1:
-        printf("fork() failed");
+        pMessage(moduleName, globalPid, "fork() failed");
         break;
     case 0:
-        if (prctl(PR_SET_NAME, (unsigned long)name) == -1)
+        globalPid= getpid();
+
+        if (prctl(PR_SET_NAME, (unsigned long)moduleName) == -1)
         {
-            printf("prctl() failed\n");
+            pMessage(moduleName, globalPid, "prctl() failed");
             exit(1);
         }
+
         input();
+
+        pMessage(moduleName, globalPid, "Done");
+        exit(0);
         break;
     default:
         break;
     }
 
-    return systemPid;
+    return globalPid;
 }
