@@ -5,26 +5,33 @@
 #include <gui.h>
 #include <input.h>
 #include <web_server.h>
+#include <message.h>
 extern char ** environ;
+
+static const char *moduleName= "web_server";
+static pid_t globalPid= -1;
 
 int create_web_server()
 {
-    pid_t systemPid;
-    char *pathName = "/usr/local/bin/filebrowser";
-    char *args[] = {"filebrowser", "-p", "8282", NULL};
+    char *pathName= "/usr/local/bin/filebrowser";
+    char *args[]= {"filebrowser", "-p", "8282", NULL};
 
-    printf("web_server 프로세스 생성시작\n");
+    globalPid= getpid();
+    pMessage(moduleName, globalPid, "Starting");
 
-    switch (systemPid = fork())
+    switch (globalPid= fork())
     {
     case -1:
-        printf("fork() failed\n");
+        pMessage(moduleName, globalPid, "fork() failed");
         exit(1);
         break;
     case 0:
+        globalPid= getpid();
+
+        pMessage(moduleName, globalPid, "exec(filebrowser)");
         if (execve(pathName, args, environ) == -1)
         {
-            printf("execl() failed\n");
+            pMessage(moduleName, globalPid, "execve() failed");
             exit(1);
         }
         break;
@@ -32,5 +39,5 @@ int create_web_server()
         break;
     }
 
-    return systemPid;
+    return globalPid;
 }
