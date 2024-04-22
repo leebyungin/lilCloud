@@ -5,11 +5,14 @@
 #include <gui.h>
 #include <input.h>
 #include <web_server.h>
+#include <message.h>
+
+static const char *moduleName = "system_server";
+static pid_t globalPid= -1;
 
 int system_server()
 {
-    printf("system_server 프로세스 동작중!\n");
-
+    pMessage(moduleName, globalPid, "Running");
     while (1)
     {
         sleep(1);
@@ -20,27 +23,31 @@ int system_server()
 
 int create_system_server()
 {
-    pid_t systemPid;
-    const char *name = "system_server";
+    globalPid= getpid();
+    pMessage(moduleName, globalPid, "Starting");
 
-    printf("system_server 프로세스 생성시작\n");
-
-    switch (systemPid = fork())
+    switch (globalPid= fork())
     {
     case -1:
-        printf("fork() failed\n");
+        pMessage(moduleName, globalPid, "fork() failed");
         break;
     case 0:
-        if (prctl(PR_SET_NAME, (unsigned long)name) == -1)
+        globalPid= getpid();
+
+        if (prctl(PR_SET_NAME, (unsigned long)moduleName) == -1)
         {
-            printf("prctl() failed\n");
+            pMessage(moduleName, globalPid, "prctl() failed");
             exit(1);
         }
+
         system_server();
+
+        pMessage(moduleName, globalPid, "Done");
+        exit(0);
         break;
     default:
         break;
     }
 
-    return systemPid;
+    return globalPid;
 }
