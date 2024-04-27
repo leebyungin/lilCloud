@@ -12,7 +12,7 @@ static pid_t globalPid= -1;
 
 int system_server()
 {
-    pMessage(moduleName, globalPid, "Running");
+    pMessage("Running");
     while (1)
     {
         sleep(1);
@@ -24,25 +24,24 @@ int system_server()
 int create_system_server()
 {
     globalPid= getpid();
-    pMessage(moduleName, globalPid, "Starting");
 
     switch (globalPid= fork())
     {
     case -1:
-        pMessage(moduleName, globalPid, "fork() failed");
+        pMessage("fork() failed");
         break;
     case 0:
         globalPid= getpid();
 
         if (prctl(PR_SET_NAME, (unsigned long)moduleName) == -1)
         {
-            pMessage(moduleName, globalPid, "prctl() failed");
+            pMessage("prctl() failed");
             exit(1);
         }
 
         system_server();
 
-        pMessage(moduleName, globalPid, "Done");
+        pMessage("Done");
         exit(0);
         break;
     default:
