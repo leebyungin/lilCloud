@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <unistd.h>
+#include <sys/prctl.h>
 
 #include <system_server.h>
 #include <gui.h>
@@ -17,21 +18,21 @@ int create_web_server()
     char *args[]= {"filebrowser", "-p", "8282", NULL};
 
     globalPid= getpid();
-    pMessage(moduleName, globalPid, "Starting");
 
     switch (globalPid= fork())
     {
     case -1:
-        pMessage(moduleName, globalPid, "fork() failed");
+        pMessage("fork() failed");
         exit(1);
         break;
     case 0:
+        prctl(PR_SET_NAME, (unsigned long)moduleName);
         globalPid= getpid();
 
-        pMessage(moduleName, globalPid, "exec(filebrowser)");
+        pMessage("exec(filebrowser)");
         if (execve(pathName, args, environ) == -1)
         {
-            pMessage(moduleName, globalPid, "execve() failed");
+            pMessage("execve() failed");
             exit(1);
         }
         break;
