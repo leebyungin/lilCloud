@@ -18,31 +18,29 @@ int create_gui()
     char *args[]= {pathName, "--new-window","http://localhost:8282", NULL};
 
     globalPid= getpid();
-    pMessage(moduleName, globalPid, "Starting");
 
     sleep(3);
     switch (globalPid= fork())
     {
     case -1:
-        pMessage(moduleName, globalPid, "fork() failed");
+        pMessage("fork() failed");
         break;
     case 0:
         globalPid= getpid();
 
         if (prctl(PR_SET_NAME, (unsigned long)moduleName) == -1)
         {
-            pMessage(moduleName, globalPid, "prctl() failed");
+            pMessage("prctl() failed");
             exit(1);
         }
 
-        pMessage(moduleName, globalPid, "exec(google-chrome-stable)");
+        pMessage("exec(google-chrome-stable)");
         if (execve(pathName, args, environ) == -1)
         {
-            pMessage(moduleName, globalPid, "execve() failed");
+            pMessage("execve() failed");
             exit(1);
         }
 
-        pMessage(moduleName, globalPid, "Done");
         exit(0);
         break;
     default:
