@@ -26,18 +26,18 @@ int main()
     sa.sa_handler = sigchldHandler;
     if(sigaction(SIGCHLD, &sa, NULL) == -1)
     {
-        pMessage(moduleName, globalPid, "sigaction() failed");
+        pMessage("sigaction() failed");
         return -1;
     }
 
-    pMessage(moduleName, globalPid, "Starting");
-    pMessage(moduleName, globalPid, "Call system_server()");
+    pMessage("Starting");
+    pMessage("call system_server()");
     spid = create_system_server();
-    pMessage(moduleName, globalPid, "call web_server()");
+    pMessage("call web_server()");
     wpid = create_web_server();
-    pMessage(moduleName, globalPid, "call input()");
+    pMessage("call input()");
     ipid = create_input();
-    pMessage(moduleName, globalPid, "call gui()");
+    pMessage("call gui()");
     gpid = create_gui();
 
     waitpid(spid, &status, 0);
