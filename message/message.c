@@ -4,12 +4,19 @@
 #include <errno.h>
 #include <execinfo.h>
 #include <unistd.h>
+#include <sys/prctl.h>
 
 #include <message.h>
 
-int pMessage(const char *name, pid_t pid, const char *message, ...)
+int pMessage(const char *message, ...)
 {
-    printf("%s [%d]: %s\n", name, pid, message);
+    char module_name[16];
+    pid_t pid;
+
+    prctl(PR_GET_NAME, (unsigned long)module_name);
+    pid= getpid();
+
+    printf("%s [%d]: %s\n", module_name, pid, message);
 }
 void error_handler(const char* msg, int bt)
 {
