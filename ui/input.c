@@ -16,11 +16,11 @@ int input()
 {
     struct sigaction sa;
 
-    pMessage(moduleName, globalPid, "Running");
+    pMessage("Running");
 
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;
-    sa.sa_handler = sigSegvHandler;
+    sa.sa_handler = segfault_handler;
 
     if( sigaction(SIGSEGV, &sa, NULL) == -1)
     {
@@ -35,51 +35,32 @@ int input()
     return 0;
 }
 
-void sigSegvHandler(int signal)
+void segfault_handler(int signal)
 {
-    void *buffer[BUF_SIZE];
-    char **symbols;
-    int size = BUF_SIZE;
-
-    size = backtrace(buffer, size);
-
-    symbols = backtrace_symbols(buffer, size);
-    if (symbols == NULL)
-    {
-        pMessage(moduleName, globalPid, "backtrace_symbols() failed");
-    }
-
-    for (int i = 0; i < size; i++)
-    {
-        printf("[bt]\t%s\n", symbols[i]);
-    }
-
-    free(symbols);
-    exit(1);
+    backtrace_log();
 }
 
 int create_input()
 {
     globalPid= getpid();
-    pMessage(moduleName, globalPid, "Starting");
 
     switch (globalPid = fork())
     {
     case -1:
-        pMessage(moduleName, globalPid, "fork() failed");
+        pMessage("fork() failed");
         break;
     case 0:
         globalPid= getpid();
 
         if (prctl(PR_SET_NAME, (unsigned long)moduleName) == -1)
         {
-            pMessage(moduleName, globalPid, "prctl() failed");
+            pMessage("prctl() failed");
             exit(1);
         }
 
         input();
 
-        pMessage(moduleName, globalPid, "Done");
+        pMessage("Done");
         exit(0);
         break;
     default:
