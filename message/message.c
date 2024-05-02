@@ -28,6 +28,7 @@ void error_handler(const char* msg, int bt)
         backtrace_log();
     }
 
+    eixt(1);
 }
 //  stderr "<perror> <backtraces>"
 void perror_handler(const char* msg, int bt)
