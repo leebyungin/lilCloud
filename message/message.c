@@ -8,6 +8,7 @@
 
 #include <message.h>
 
+// stdout "<Module> <pid>: <message>\n"
 int pMessage(const char *message, ...)
 {
     char module_name[16];
@@ -18,6 +19,7 @@ int pMessage(const char *message, ...)
 
     printf("%s [%d]: %s\n", module_name, pid, message);
 }
+//  stderr "<message> <backtraces>"
 void error_handler(const char* msg, int bt)
 {
     fprintf(stderr, "%s\n",msg);
@@ -25,8 +27,9 @@ void error_handler(const char* msg, int bt)
     {
         backtrace_log();
     }
-    exit(1);
+
 }
+//  stderr "<perror> <backtraces>"
 void perror_handler(const char* msg, int bt)
 {
     perror(msg);
