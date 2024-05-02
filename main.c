@@ -13,6 +13,8 @@ void sigchldHandler(int signal);
 static const char *moduleName= "main";
 static pid_t globalPid=-1;
 
+static int processCount=0;
+
 int main()
 {
     pid_t spid, gpid, ipid, wpid;
@@ -33,17 +35,31 @@ int main()
     pMessage("Starting");
     pMessage("call system_server()");
     spid = create_system_server();
+	processCount++;
+	
     pMessage("call web_server()");
     wpid = create_web_server();
+	processCount++;
+	
     pMessage("call input()");
     ipid = create_input();
+	processCount++;
+	
     pMessage("call gui()");
     gpid = create_gui();
+	processCount++;
 
+	// To-do : pid 리스트를 관리하는 기능 만들기.
+	// 현재 방식은 프로세스의 종료 순서가 고정돼 있음.
     waitpid(spid, &status, 0);
     waitpid(gpid, &status, 0);
     waitpid(ipid, &status, 0);
     waitpid(wpid, &status, 0);
+
+	while(processCount>0)
+	{
+		pause();
+	};
 
     return 0;
 }
@@ -58,4 +74,5 @@ void sigchldHandler(int signal)
     //pMessage(moduleName, globalPid, "Caught SIGCHLD(%d)",signal);
     printf("main.handler : Reaped chld(%d)\n",childPid);
     //pMessage(moduleName, globalPid, "Reaped child(%d)",childPid);
+	processCount--;
 }
