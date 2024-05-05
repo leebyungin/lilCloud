@@ -11,7 +11,7 @@
 #include <web_server.h>
 #include <message.h>
 
-//#define _DEBUG_
+// #define _DEBUG_
 
 // about signal
 static void regist_signal_handler(int signum, void (*handler)(int));
@@ -24,27 +24,25 @@ static void *sensor(void *);
 
 // about command
 static void command_loop(void);
-static char **parse_line(char *line,char *delim);
+static char **parse_line(char *line, char *delim);
 static int execute(char **args);
 static int my_shell(char **args);
 static int my_send(char **args);
 static int my_exit(char **args);
-static char *builtin_command[] = 
-{
-	"sh",
-	"send",
-	"exit"
-};
+static char *builtin_command[] =
+    {
+        "sh",
+        "send",
+        "exit"};
 static int builtin_count()
 {
-	return sizeof(builtin_command) / sizeof(char*);
+    return sizeof(builtin_command) / sizeof(char *);
 }
-static int(*builtin_func[])(char **arg) =
-{
-	&my_shell,
-	&my_send,
-	&my_exit
-};
+static int (*builtin_func[])(char **arg) =
+    {
+        &my_shell,
+        &my_send,
+        &my_exit};
 
 static void print_vector(const char **arr);
 static const char *moduleName = "input";
@@ -61,10 +59,10 @@ int input()
     create_pthread(&sensorTid, sensor, NULL);
     create_pthread(&commandTid, command, NULL);
 
-	pthread_join(commandTid, NULL);
-	pMessage("Command thread terminated");
-	pthread_join(sensorTid, NULL);
-	pMessage("Sensor thread terminated");
+    pthread_join(commandTid, NULL);
+    pMessage("Command thread terminated");
+    pthread_join(sensorTid, NULL);
+    pMessage("Sensor thread terminated");
 
     while (1)
     {
@@ -81,7 +79,7 @@ static void segfault_handler(int signal)
 
 int create_input()
 {
-	pid_t pid;
+    pid_t pid;
     pid = getpid();
 
     switch (pid = fork())
@@ -149,7 +147,7 @@ static void *sensor(void *)
 }
 static void command_loop(void)
 {
-	int savederrno = errno;
+    int savederrno = errno;
     int status = 1;
     size_t line_len = 0;
     char *line = NULL;
@@ -160,22 +158,22 @@ static void command_loop(void)
     {
         printf("\33[32mlilCloud\33[37m> ");
 
-        if(getline(&line, &line_len, stdin) == -1)
+        if (getline(&line, &line_len, stdin) == -1)
         {
-			// ctrl + d 입력 
-			if(errno == 0)
-			{
-				pMessage("EOT");
-				break;
-			}
-			else
-			{
-				perror_handler("input.command_loop.getline()", 0);
-			}
+            // ctrl + d 입력
+            if (errno == 0)
+            {
+                pMessage("EOT");
+                break;
+            }
+            else
+            {
+                perror_handler("input.command_loop.getline()", 0);
+            }
         }
         tokens = parse_line(line, " \t\n");
 #ifdef _DEBUG_
-		print_vector((const char**)tokens);
+        print_vector((const char **)tokens);
 #endif
         status = execute(tokens);
     }
@@ -183,11 +181,11 @@ static void command_loop(void)
     free(tokens);
     free(line);
 
-	errno = savederrno;
+    errno = savederrno;
     return;
 }
 
-static char **parse_line(char *line,char *delim)
+static char **parse_line(char *line, char *delim)
 {
     int savedErrno = errno;
     errno = 0;
@@ -196,14 +194,14 @@ static char **parse_line(char *line,char *delim)
     unsigned int position = 0;
     unsigned int bufsize = ARG_MAX;
 
-    tokens = (char**) malloc(bufsize * sizeof(char*));
-    if(tokens == NULL)
+    tokens = (char **)malloc(bufsize * sizeof(char *));
+    if (tokens == NULL)
     {
         perror_handler("input.parse_line.malloc()", 0);
     }
 
     token = strtok(line, delim);
-    while(token != NULL)
+    while (token != NULL)
     {
         tokens[position++] = token;
 
@@ -234,27 +232,27 @@ static char **parse_line(char *line,char *delim)
 
 static int execute(char **args)
 {
-	int retval = -1;
+    int retval = -1;
 
-	if(args[0] == NULL)
-	{
-		return 1;
-	}
+    if (args[0] == NULL)
+    {
+        return 1;
+    }
 
-	for( int i = 0; i < builtin_count(); i++)
-	{
-		if(strcmp(args[0], builtin_command[i]) == 0)
-		{
-			retval = builtin_func[i](args);
-			break;
-		}
-	}
-	if(retval == -1)
-	{
-		printf("%s: command not fonund\n", args[0]);
-	}
+    for (int i = 0; i < builtin_count(); i++)
+    {
+        if (strcmp(args[0], builtin_command[i]) == 0)
+        {
+            retval = builtin_func[i](args);
+            break;
+        }
+    }
+    if (retval == -1)
+    {
+        printf("%s: command not fonund\n", args[0]);
+    }
 
-	return retval;
+    return retval;
 }
 
 static int my_shell(char **args)
@@ -262,25 +260,25 @@ static int my_shell(char **args)
     pid_t pid;
     int retval = 0;
 
-    //issue: 프로세스 종료 제대로 안됨
-    switch(pid = fork())
+    // issue: 프로세스 종료 제대로 안됨
+    switch (pid = fork())
     {
-        case -1:
-			perror_handler("input.my_shell.fork()", 0);
-			break;
-        case 0:
-            prctl(PR_SET_NAME, args[0]);
-            if(execvp(args[0], args) == -1)
-			{
-				perror_handler("input.my_shell.exevp()", 0);
-			}
-			break;
-		default:
-            retval = 1;
-			pMessage("Wait child(%d)", pid);
-            waitpid(pid, NULL, 0);
-			pMessage("Reaped pid(%d)", pid);
-			break;
+    case -1:
+        perror_handler("input.my_shell.fork()", 0);
+        break;
+    case 0:
+        prctl(PR_SET_NAME, args[0]);
+        if (execvp(args[0], args) == -1)
+        {
+            perror_handler("input.my_shell.exevp()", 0);
+        }
+        break;
+    default:
+        retval = 1;
+        pMessage("Wait child(%d)", pid);
+        waitpid(pid, NULL, 0);
+        pMessage("Reaped pid(%d)", pid);
+        break;
     }
 
     return retval;
@@ -290,15 +288,15 @@ static int my_send(char **args)
 }
 static int my_exit(char **args)
 {
-	return 0;
+    return 0;
 }
 
 static void print_vector(const char **arr)
 {
     unsigned int i = 0;
-    
-	pMessage("Print vector");
-    while(arr[i] != NULL)
+
+    pMessage("Print vector");
+    while (arr[i] != NULL)
     {
         pMessage(arr[i]);
         i++;
