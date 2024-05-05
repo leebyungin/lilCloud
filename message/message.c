@@ -5,46 +5,81 @@
 #include <execinfo.h>
 #include <unistd.h>
 #include <sys/prctl.h>
+#include <string.h>
 
 #include <message.h>
 
-// stdout "<Module> <pid>: <message>\n"
-int pMessage(const char *message, ...)
+//static void split_line(char *line, char *delim);
+
+// stdout "Module_name [pid]: msg\n"
+int pMessage(const char *msg, ...)
 {
-    char module_name[16];
-    pid_t pid;
+	char module_name[16];
+	pid_t pid;
+	va_list ap;
+	int msg_len = strlen(msg);
+	int escape_sequence = 0;
 
-    prctl(PR_GET_NAME, (unsigned long)module_name);
-    pid= getpid();
+	prctl(PR_GET_NAME, (unsigned long)module_name);
+	pid= getpid();
 
-    printf("%s [%d]: %s\n", module_name, pid, message);
+	printf("%s [%d]: ", module_name, pid);
+	va_start(ap, msg);
+
+	for(int i = 0; i < msg_len; i++)
+	{
+		if(msg[i] == '%')
+		{
+			escape_sequence = 1;
+			continue;
+		}
+		else if(escape_sequence == 1)
+		{
+			escape_sequence = 0;
+			switch(msg[i])
+			{
+				case 'd':
+					printf("%d", va_arg(ap, int));
+					break;
+				case 's':
+					printf("%s", va_arg(ap, char *));
+					break;
+			}
+			continue;
+		}
+		putchar(msg[i]);
+	}
+	putchar('\n');
 }
-//  stderr "<message> <backtraces>"
+//  stderr "msg [backtraces]"
 void error_handler(const char* msg, int bt)
 {
-    fprintf(stderr, "%s\n",msg);
-    if(bt)
-    {
-        backtrace_log();
-    }
+	fprintf(stderr, "\33[31m%s\33[37m\n",msg);
+	if(bt)
+	{
+		backtrace_log();
+	}
 
-    eixt(1);
+	exit(1);
 }
-//  stderr "<perror> <backtraces>"
+//  stderr "perror(msg) [backtraces]"
 void perror_handler(const char* msg, int bt)
 {
-    perror(msg);
-    if(bt)
-    {
-        backtrace_log();
-    }
-    exit(1);
+	fprintf(stderr, "\33[31m");
+	perror(msg);
+	fprintf(stderr, "\33[37m");
+	if(bt)
+	{
+		backtrace_log();
+	}
+
+	exit(1);
 }
 void backtrace_log(void)
 {
-    void *buf[ERROR_BUF_SIZE];
-    int size;
-    
-    size= backtrace(buf, ERROR_BUF_SIZE);
-    backtrace_symbols_fd(buf, size, STDERR_FILENO);
+	void *buf[ERROR_BUF_SIZE];
+	int size;
+
+	size= backtrace(buf, ERROR_BUF_SIZE);
+	backtrace_symbols_fd(buf, size, STDERR_FILENO);
 }
