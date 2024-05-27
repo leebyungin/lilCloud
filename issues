@@ -1,0 +1,2 @@
+1. sh에서 ctrl + d로 sh을 종료하면 main의 핸들러가 동작해야하는데, pMessage()의  prctl(PF_GET_NAME)이랑 getpid()가 input 프로세스 정보로 보임.
+2. sh에서 exit입력 후 input 프로세스 pid 살아있는 거 확인해보기
