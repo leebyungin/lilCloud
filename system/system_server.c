@@ -4,6 +4,7 @@
 #include <signal.h>
 #include <pthread.h>
 #include <mqueue.h>
+#include <semaphore.h>
 
 #include <system_server.h>
 #include <gui.h>
@@ -11,10 +12,14 @@
 #include <web_server.h>
 #include <message.h>
 
+#define TIMER_SEM "/timerSem"
+
 #define WATCHDOG_MQ "/watchdog_mq"
 #define MONITOR_MQ "/monitor_mq"
 #define DISK_MQ "/disk_mq"
 #define CAMERA_MQ "/camera_mq"
+
+static sem_t *timer_sem;
 
 // signal 관련
 static void regist_signal_handler(int signum, void (*handler)(int));
@@ -27,6 +32,7 @@ static void *watchdog(void *);
 static void *disk_service(void *);
 static void *monitor(void *);
 static void *camera_service(void *);
+static void *timer_service(void *);
 
 static const char *moduleName = "system_server";
 static unsigned int alarm_count = 0;
@@ -34,23 +40,28 @@ static pid_t globalPid= -1;
 
 int system_server()
 {
-    struct sigaction sa;
-	pthread_t watchdogTid, diskServiceTid, monitorTid, cameraServiceTid;
+	pthread_t watchdogTid, diskServiceTid, monitorTid, cameraServiceTid, timerServiceTid;
 
     pMessage("Running");
 
-	regist_signal_handler(SIGALRM, timer_handler);
-	create_periodic_timer(5, 0);
 
+
+	
 	create_pthread(&watchdogTid, watchdog, NULL);
 	create_pthread(&diskServiceTid, disk_service, NULL);
 	create_pthread(&monitorTid, monitor, NULL);
 	create_pthread(&cameraServiceTid, camera_service, NULL);
+	create_pthread(&timerServiceTid, timer_service, NULL);
 
     while (1)
     {
         sleep(1);
     }
+
+	if(sem_unlink(TIMER_SEM) == -1)
+	{
+		perror_handler("system_server(): sem_unllink() *FAIL*", 0);
+	}
 
     return 0;
 }
@@ -108,7 +119,10 @@ void create_periodic_timer(unsigned int sec, unsigned int usec)
 }
 void timer_handler(int sig)
 {
-    //printf("timer_expire_signal_handler: %d\n", alarm_count++);
+	if(sem_post(timer_sem) == -1)
+	{
+		perror_handler("timer_handler: sem_post() *FAIL*", 0);
+	}
 }
 int create_pthread(pthread_t *tid, void *(*start_routine)(void*), void *arg)
 {
@@ -281,4 +295,31 @@ void *camera_service(void *)
 	}
 
 	return NULL;
+}
+
+void *timer_service(void *)
+{
+	if(sem_unlink(TIMER_SEM) == -1)
+	{
+		perror_handler("system_server(): sem_unllink() *FAIL*", 0);
+	}
+
+	if((timer_sem = sem_open(TIMER_SEM, O_CREAT | O_EXCL, S_IWUSR | S_IRUSR, 0)) == SEM_FAILED)
+	{
+		perror_handler("systme_server(): sem_open() *FAIL*", 0);
+	}
+
+	regist_signal_handler(SIGALRM, timer_handler);
+	create_periodic_timer(5, 0);
+
+	while(1)
+	{
+		if(sem_wait(timer_sem) == -1)
+		{
+			perror_handler("timer_service: sem_wait() *FAIL*", 0);
+		}
+
+		alarm_count ++;
+		printf("timer: %d\n", alarm_count);
+	}
 }

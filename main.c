@@ -41,10 +41,10 @@ int main()
 		return -1;
 	}
 
+	pMessage("Starting");
 	mq_destroy();
 	mq_create();
 
-	pMessage("Starting");
 	pMessage("call system_server()");
 	spid = create_system_server();
 	processCount++;
