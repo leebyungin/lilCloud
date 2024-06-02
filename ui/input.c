@@ -4,6 +4,7 @@
 #include <execinfo.h>
 #include <signal.h>
 #include <pthread.h>
+#include <mqueue.h>
 
 #include <system_server.h>
 #include <gui.h>
@@ -11,8 +12,12 @@
 #include <web_server.h>
 #include <message.h>
 #include <camera_HAL.h>
+#include <message_type.h>
 
 // #define _DEBUG_
+
+#define MONITOR_MQ "/monitor_mq"
+static mqd_t monitor_mq;
 
 // about signal
 static void regist_signal_handler(int signum, void (*handler)(int));
@@ -64,6 +69,8 @@ int input()
     pMessage("Running");
 
     regist_signal_handler(SIGSEGV, segfault_handler);
+
+	monitor_mq = mq_open(MONITOR_MQ, O_WRONLY);
 
     create_pthread(&sensorTid, sensor, NULL);
     create_pthread(&commandTid, command, NULL);
@@ -146,10 +153,17 @@ static void *command(void *)
 }
 static void *sensor(void *)
 {
+	struct msg_t msg;
+	msg.type = 1;
+	msg.param1 = 365;
+	msg.param2 = 1004;
+
     pMessage("Sensor thread running");
     while (1)
     {
         sleep(1);
+			
+		mq_send(monitor_mq, (void*)&msg, sizeof(struct msg_t), 0);
     }
 
     return NULL;

@@ -5,8 +5,9 @@ UI = ./ui
 WEB_SERVER = ./web_server
 MESSAGE = ./message
 HAL = ./hal
+INCLUDE = ./include
 
-INCLUDES = -I$(SYSTEM) -I$(UI) -I$(WEB_SERVER) -I$(MESSAGE) -I$(HAL)
+INCLUDES = -I$(SYSTEM) -I$(UI) -I$(WEB_SERVER) -I$(MESSAGE) -I$(HAL) -I$(INCLUDE)
 
 CC = gcc
 CXXLIBS = -lpthread -lm -lrt

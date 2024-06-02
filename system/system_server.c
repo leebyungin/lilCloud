@@ -11,6 +11,7 @@
 #include <input.h>
 #include <web_server.h>
 #include <message.h>
+#include <message_type.h>
 
 #define TIMER_SEM "/timerSem"
 
@@ -225,7 +226,7 @@ void *monitor(void *)
 {
 	mqd_t monitor_mq;
 	struct mq_attr attr;
-	char *buff;
+	struct msg_t msg;
 	int msgsize;
 
 	pMessage("Monitor thread running");
@@ -241,17 +242,19 @@ void *monitor(void *)
 	}
 
 	msgsize = attr.mq_msgsize;
-	buff = (char*)malloc(sizeof(char) * msgsize);
 
 	while(1)
 	{
-		if(mq_receive(monitor_mq, buff, msgsize, NULL) == -1)
+		if(mq_receive(monitor_mq, (void*)&msg, msgsize, NULL) == -1)
 		{
-			perror_handler("[monitor htread]: mq_receive() *FAIL*", 0);
+			perror_handler("[monitor tread]: mq_receive() *FAIL*", 0);
 		}
+
+		pMessage("[Monitor thread]:Message type : %d", msg.type);
+		pMessage("[Monitor thread]:Message param1: %d", msg.param1);
+		pMessage("[Monitor thread]:Message param2: %d", msg.param2);
 	}
 
-	free(buff);
 	if(mq_close(monitor_mq) == -1)
 	{
 		perror_handler("[monitor thread]: mq_close() *FAIL*", 0);
@@ -301,7 +304,10 @@ void *timer_service(void *)
 {
 	if(sem_unlink(TIMER_SEM) == -1)
 	{
-		perror_handler("system_server(): sem_unllink() *FAIL*", 0);
+		if(errno != ENOENT)
+		{
+			perror_handler("system_server(): sem_unlink() *FAIL*", 0);
+		}
 	}
 
 	if((timer_sem = sem_open(TIMER_SEM, O_CREAT | O_EXCL, S_IWUSR | S_IRUSR, 0)) == SEM_FAILED)
