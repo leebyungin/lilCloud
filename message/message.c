@@ -44,6 +44,11 @@ int pMessage(const char *msg, ...)
 				case 's':
 					printf("%s", va_arg(ap, char *));
 					break;
+				case 'f':
+					printf("%f", va_arg(ap, double));
+					break;
+				default :
+					printf("\33[31m'%%%c' type is unimplemented in pMessage()\33[37m", msg[i]);
 			}
 			continue;
 		}

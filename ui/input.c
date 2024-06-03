@@ -5,6 +5,9 @@
 #include <signal.h>
 #include <pthread.h>
 #include <mqueue.h>
+#include <sys/ipc.h>
+#include <sys/types.h>
+#include <sys/shm.h>
 
 #include <system_server.h>
 #include <gui.h>
@@ -154,16 +157,46 @@ static void *command(void *)
 static void *sensor(void *)
 {
 	struct msg_t msg;
-	msg.type = 1;
-	msg.param1 = 365;
-	msg.param2 = 1004;
-
+	key_t key;
+	int shmid;
+	struct sensor_info_t *sensor;
+	
     pMessage("Sensor thread running");
+
+	key = ftok("./ui/input.c", 0);
+	if (key == -1)
+	{
+		perror_handler("[Sensor thread]: ftok() *FAIL*", 0);
+	}
+	
+	//shmid = shmget(key, sizeof (struct sensor_info_t), IPC_CREAT | IPC_EXCL | 0600);
+	shmid = shmget(IPC_PRIVATE, sizeof (struct sensor_info_t), IPC_CREAT | IPC_EXCL | 0600);
+	if(shmid == -1)
+	{
+		perror_handler("[Sensor thread]: shmget() *FAIL*", 0);
+	}
+
+	sensor = shmat(shmid, NULL, 0);
+	if(sensor == (void*)-1)
+	{
+		perror_handler("[Sensor thread]: shmat() *FAIL*", 0);
+	}
+
+
     while (1)
     {
         sleep(1);
 			
+		sensor->temper = 36;
+		sensor->press = 1;
+		sensor->humid = 40;
+
+		msg.type = 1;
+		msg.param1 = shmid;
+		msg.param2 = 0;
+
 		mq_send(monitor_mq, (void*)&msg, sizeof(struct msg_t), 0);
+		pMessage("Send message: shmid: %d", msg.param1);
     }
 
     return NULL;

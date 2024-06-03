@@ -5,6 +5,8 @@
 #include <pthread.h>
 #include <mqueue.h>
 #include <semaphore.h>
+#include <sys/types.h>
+#include <sys/shm.h>
 
 #include <system_server.h>
 #include <gui.h>
@@ -245,14 +247,37 @@ void *monitor(void *)
 
 	while(1)
 	{
+		key_t key;
+		int shmid;
+
+		void * shm;
+		
 		if(mq_receive(monitor_mq, (void*)&msg, msgsize, NULL) == -1)
 		{
 			perror_handler("[monitor tread]: mq_receive() *FAIL*", 0);
 		}
+		
+		if(msg.type == 1)
+		{
+			struct sensor_info_t sensor;
+			shmid = msg.param1;
+			pMessage("Got message: shmid: %d", shmid);
 
-		pMessage("[Monitor thread]:Message type : %d", msg.type);
-		pMessage("[Monitor thread]:Message param1: %d", msg.param1);
-		pMessage("[Monitor thread]:Message param2: %d", msg.param2);
+			if((shm = shmat(shmid, NULL, SHM_RDONLY)) == (void *)-1)
+			{
+				perror_handler("[monitor thread]: shmat() *FAIL*", 0);
+			}
+
+			memcpy(&sensor, shm, sizeof(struct sensor_info_t));	
+			pMessage("+ temperature: %f", sensor.temper);
+			pMessage("+ pressure: %f", sensor.press);
+			pMessage("+ humidity: %x", sensor.humid);
+
+			if(shmdt(shm) != 0)
+			{
+				perror_handler("[monitor thread]: shmdt() *FAIL*", 0);
+			}
+		}
 	}
 
 	if(mq_close(monitor_mq) == -1)

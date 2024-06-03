@@ -8,4 +8,11 @@ struct msg_t
 	int param2;
 };
 
+struct sensor_info_t
+{
+	double temper;
+	double press;
+	double humid;
+};
+
 #endif
