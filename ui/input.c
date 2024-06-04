@@ -159,7 +159,7 @@ static void *sensor(void *)
 	struct msg_t msg;
 	key_t key;
 	int shmid;
-	struct sensor_info_t *sensor;
+	struct sensor_info_t *sensor_info;
 	
     pMessage("Sensor thread running");
 
@@ -176,27 +176,27 @@ static void *sensor(void *)
 		perror_handler("[Sensor thread]: shmget() *FAIL*", 0);
 	}
 
-	sensor = shmat(shmid, NULL, 0);
+	sensor_info = shmat(shmid, NULL, 0);
+	shmctl(shmid, IPC_RMID, NULL);
+
 	if(sensor == (void*)-1)
 	{
 		perror_handler("[Sensor thread]: shmat() *FAIL*", 0);
 	}
 
-
     while (1)
     {
         sleep(1);
 			
-		sensor->temper = 36;
-		sensor->press = 1;
-		sensor->humid = 40;
+		sensor_info->temper = 36;
+		sensor_info->press = 1;
+		sensor_info->humid = 40;
 
 		msg.type = 1;
 		msg.param1 = shmid;
 		msg.param2 = 0;
 
 		mq_send(monitor_mq, (void*)&msg, sizeof(struct msg_t), 0);
-		pMessage("Send message: shmid: %d", msg.param1);
     }
 
     return NULL;

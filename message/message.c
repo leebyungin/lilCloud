@@ -24,6 +24,7 @@ int pMessage(const char *msg, ...)
 	pid= getpid();
 
 	printf("%s [%d]: ", module_name, pid);
+
 	va_start(ap, msg);
 
 	for(int i = 0; i < msg_len; i++)
@@ -45,7 +46,7 @@ int pMessage(const char *msg, ...)
 					printf("%s", va_arg(ap, char *));
 					break;
 				case 'f':
-					printf("%f", va_arg(ap, double));
+					printf("%0.2f", va_arg(ap, double));
 					break;
 				default :
 					printf("\33[31m'%%%c' type is unimplemented in pMessage()\33[37m", msg[i]);

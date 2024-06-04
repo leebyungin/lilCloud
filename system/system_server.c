@@ -1,13 +1,19 @@
-#include <stdio.h>
 #include <sys/prctl.h>
 #include <sys/time.h>  //setitimer
+#include <sys/types.h>
+#include <sys/shm.h>
+#include <sys/inotify.h>
+#include <sys/stat.h>
+
 #include <signal.h>
+#include <stdio.h>
 #include <pthread.h>
 #include <mqueue.h>
 #include <semaphore.h>
-#include <sys/types.h>
-#include <sys/shm.h>
+#include <unistd.h>
+#include <dirent.h>
 
+// my library
 #include <system_server.h>
 #include <gui.h>
 #include <input.h>
@@ -177,51 +183,55 @@ void *watchdog(void *)
 	}
 	return NULL;
 }
+
+#define INOTIFY_BUF_LEN (sizeof(struct inotify_event) + NAME_MAX +1)
+#define MANAGED_DIR "./watched"
+
+static off_t fileSize(const char *pathname)
+{
+	struct stat filestat;
+
+	lstat(pathname, &filestat);
+
+	return filestat.st_size;
+}
 void *disk_service(void *)
 {
-	mqd_t disk_mq;
-	struct mq_attr attr;
-	char *buff;
-	int msgsize;
+	int inotify_fd;
+	int read_num;
+	char *buf;
+	DIR *dir;
+	struct dirent *dirEntry;
+	long long totalSize;
 
-	pMessage("disk_service thread running");
+	//to-do: access(), mkdir()로 MANAGED_DIR 만들기
 
-	if((disk_mq = mq_open(DISK_MQ, O_RDONLY)) == -1)
-	{
-		perror_handler("[disk_service thread]: mq_open() *FAIL*", 0);
-	}
-	
-	if(mq_getattr(disk_mq, &attr) == -1)
-	{
-		perror_handler("[disk_service thread]: mq_getattr() *FAIL*", 0);
-	}
-	msgsize = attr.mq_msgsize;
-	buff = (char*)malloc(sizeof(char) * msgsize);
+	buf = malloc(INOTIFY_BUF_LEN);
+	inotify_fd = inotify_init();
+	inotify_add_watch(inotify_fd, MANAGED_DIR, IN_CREATE);
 
 	while(1)
 	{
-		FILE *fp;
-		char buf[1024];
-		int str_len;
+		totalSize = 0;
+		if(!read(inotify_fd, buf, INOTIFY_BUF_LEN))
+		{
+			perror_handler("[disk_service]: inotify - read() *FAIL*", 0);
+		}
 
-		if(mq_receive(disk_mq, buff, msgsize, NULL) == -1)
+		dir = opendir(MANAGED_DIR);
+		while( (dirEntry = readdir(dir)) != NULL)
 		{
-			perror_handler("[disk_service thread]: mq_receive() *FAIL*", 0);
+			if(!strcmp(dirEntry->d_name,"."))
+				continue;
+			if(!strcmp(dirEntry->d_name,".."))
+				continue;
+
+			totalSize += fileSize(dirEntry->d_name);
 		}
-		
-		fp = popen("df","r");
-		while(fgets(buf, sizeof(buf), fp) != NULL)
-		{
-			write(STDOUT_FILENO, buf, sizeof(buf)/sizeof(char));
-		}
-		pclose(fp);	
+		pMessage(" + Directory: %d", totalSize);
 	}
 
-	free(buff);
-	if(mq_close(disk_mq) == -1)
-	{
-		perror_handler("[disk_service thread]: mq_close() *FAIL*", 0);
-	}
+	free(buf);
 	return NULL;
 }
 void *monitor(void *)
@@ -245,7 +255,8 @@ void *monitor(void *)
 
 	msgsize = attr.mq_msgsize;
 
-	while(1)
+	//to-do: 센서 정보 터미널 말고 다른 곳으로 출력(너무 더러움)
+	//while(1)
 	{
 		key_t key;
 		int shmid;
@@ -261,7 +272,6 @@ void *monitor(void *)
 		{
 			struct sensor_info_t sensor;
 			shmid = msg.param1;
-			pMessage("Got message: shmid: %d", shmid);
 
 			if((shm = shmat(shmid, NULL, SHM_RDONLY)) == (void *)-1)
 			{
@@ -271,7 +281,7 @@ void *monitor(void *)
 			memcpy(&sensor, shm, sizeof(struct sensor_info_t));	
 			pMessage("+ temperature: %f", sensor.temper);
 			pMessage("+ pressure: %f", sensor.press);
-			pMessage("+ humidity: %x", sensor.humid);
+			pMessage("+ humidity: %f", sensor.humid);
 
 			if(shmdt(shm) != 0)
 			{
