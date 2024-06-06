@@ -19,7 +19,7 @@
 #include <input.h>
 #include <web_server.h>
 #include <message.h>
-#include <message_type.h>
+#include <communication.h>
 
 #define TIMER_SEM "/timerSem"
 
@@ -157,6 +157,7 @@ void *watchdog(void *)
 	{
 		perror_handler("[watchdog thread]: mq_open() *FAIL*", 0);
 	}
+	pMessage("mq_open(%s)", WATCHDOG_MQ);
 	
 
 	if(mq_getattr(watchdog_mq, &attr) == -1)
@@ -204,7 +205,11 @@ void *disk_service(void *)
 	struct dirent *dirEntry;
 	long long totalSize;
 
-	//to-do: access(), mkdir()로 MANAGED_DIR 만들기
+	if(access(MANAGED_DIR, F_OK) == -1)
+	{
+		pMessage("Make directory %s", MANAGED_DIR);
+		mkdir(MANAGED_DIR, S_IFDIR | 0775);
+	}
 
 	buf = malloc(INOTIFY_BUF_LEN);
 	inotify_fd = inotify_init();
@@ -243,10 +248,11 @@ void *monitor(void *)
 
 	pMessage("Monitor thread running");
 
-	if((monitor_mq = mq_open(MONITOR_MQ, O_RDONLY)) == -1)
+	if((monitor_mq = mq_open(MONITOR_MQ, O_RDWR)) == -1)
 	{
 		perror_handler("[monitor thread]: mq_open() *FAIL*", 0);
 	}
+	pMessage("mq_open(%s)", MONITOR_MQ);
 	
 	if(mq_getattr(monitor_mq, &attr) == -1)
 	{
@@ -256,7 +262,7 @@ void *monitor(void *)
 	msgsize = attr.mq_msgsize;
 
 	//to-do: 센서 정보 터미널 말고 다른 곳으로 출력(너무 더러움)
-	//while(1)
+	while(1)
 	{
 		key_t key;
 		int shmid;
@@ -267,7 +273,8 @@ void *monitor(void *)
 		{
 			perror_handler("[monitor tread]: mq_receive() *FAIL*", 0);
 		}
-		
+		pMessage("Message Arrives (type: %d param1: %d param2: %d)",msg.type, msg.param1, msg.param2);
+			
 		if(msg.type == 1)
 		{
 			struct sensor_info_t sensor;
@@ -288,12 +295,21 @@ void *monitor(void *)
 				perror_handler("[monitor thread]: shmdt() *FAIL*", 0);
 			}
 		}
+		if(msg.type == MQ_FIN)
+		{
+			break;
+		}
 	}
 
-	if(mq_close(monitor_mq) == -1)
+	if(mq_4way_handshake("/sensor_end"))
 	{
-		perror_handler("[monitor thread]: mq_close() *FAIL*", 0);
+		if(mq_close(monitor_mq) == -1)
+		{
+			perror_handler("[monitor thread]: mq_close() *FAIL*", 0);
+		}
+		pMessage("monitor thread Terminated");
 	}
+
 	return NULL;
 }
 
@@ -310,6 +326,7 @@ void *camera_service(void *)
 	{
 		perror_handler("[camera_service thread]: mq_open() *FAIL*", 0);
 	}
+	pMessage("mq_open(%s)", CAMERA_MQ);
 	
 	if(mq_getattr(camera_mq, &attr) == -1)
 	{

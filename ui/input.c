@@ -15,7 +15,7 @@
 #include <web_server.h>
 #include <message.h>
 #include <camera_HAL.h>
-#include <message_type.h>
+#include <communication.h>
 
 // #define _DEBUG_
 
@@ -27,6 +27,8 @@ static void regist_signal_handler(int signum, void (*handler)(int));
 static void segfault_handler(int signal);
 
 // about thread
+static volatile int sensor_on= 1;
+pthread_t commandTid, sensorTid;
 static int create_pthread(pthread_t *tid, void *(*start_routine)(void *), void *arg);
 static void *command(void *);
 static void *sensor(void *);
@@ -38,14 +40,16 @@ static int execute(char **args);
 static int my_shell(char **args);
 static int my_send(char **args);
 static int my_exit(char **args);
-static int my_help(char **args);
 static int my_camera(char **args);
+static int my_sensor(char **args);
+static int my_help(char **args);
 static char *builtin_command[] =
     {
         "sh",
         "send",
         "exit",
         "camera",
+		"sensor",
 		"help"
 	};
 static int builtin_count()
@@ -58,6 +62,7 @@ static int (*builtin_func[])(char **arg) =
         &my_send,
         &my_exit,
         &my_camera,
+		&my_sensor,
 		&my_help
 	};
 
@@ -67,13 +72,12 @@ static const char *moduleName = "input";
 int input()
 {
     struct sigaction sa;
-    pthread_t commandTid, sensorTid;
 
     pMessage("Running");
 
     regist_signal_handler(SIGSEGV, segfault_handler);
 
-	monitor_mq = mq_open(MONITOR_MQ, O_WRONLY);
+	monitor_mq = mq_open(MONITOR_MQ, O_RDWR);
 
     create_pthread(&sensorTid, sensor, NULL);
     create_pthread(&commandTid, command, NULL);
@@ -83,10 +87,10 @@ int input()
     pthread_join(sensorTid, NULL);
     pMessage("Sensor thread terminated");
 
-    while (1)
-    {
-        sleep(1);
-    }
+	if(mq_close(monitor_mq) == -1)
+	{
+		perror_handler("mq_close(monitor_mq) *FAIL*",0);
+	}
 
     return 0;
 }
@@ -160,8 +164,14 @@ static void *sensor(void *)
 	key_t key;
 	int shmid;
 	struct sensor_info_t *sensor_info;
+	struct mq_attr attr;
 	
     pMessage("Sensor thread running");
+
+	if(mq_getattr(monitor_mq, &attr) == -1)
+	{
+		perror_handler("[sensor thread]: mq_getattr() *FAIL*", 0);
+	}
 
 	key = ftok("./ui/input.c", 0);
 	if (key == -1)
@@ -169,8 +179,8 @@ static void *sensor(void *)
 		perror_handler("[Sensor thread]: ftok() *FAIL*", 0);
 	}
 	
-	//shmid = shmget(key, sizeof (struct sensor_info_t), IPC_CREAT | IPC_EXCL | 0600);
-	shmid = shmget(IPC_PRIVATE, sizeof (struct sensor_info_t), IPC_CREAT | IPC_EXCL | 0600);
+	shmid = shmget(key, sizeof (struct sensor_info_t), IPC_CREAT | IPC_EXCL | 0600);
+	//shmid = shmget(IPC_PRIVATE, sizeof (struct sensor_info_t), IPC_CREAT | IPC_EXCL | 0600);
 	if(shmid == -1)
 	{
 		perror_handler("[Sensor thread]: shmget() *FAIL*", 0);
@@ -184,10 +194,8 @@ static void *sensor(void *)
 		perror_handler("[Sensor thread]: shmat() *FAIL*", 0);
 	}
 
-    while (1)
+    while (sensor_on)
     {
-        sleep(1);
-			
 		sensor_info->temper = 36;
 		sensor_info->press = 1;
 		sensor_info->humid = 40;
@@ -197,9 +205,20 @@ static void *sensor(void *)
 		msg.param2 = 0;
 
 		mq_send(monitor_mq, (void*)&msg, sizeof(struct msg_t), 0);
+
+        sleep(3);
     }
 
-    return NULL;
+	msg.type = MQ_FIN;
+	mq_send(monitor_mq, (void*)&msg, sizeof(struct msg_t), 0);
+
+	if(mq_4way_handshake("/sensor_end"))
+	{
+		shmdt(sensor_info);
+		pMessage("shmdt(sensor)"); 
+	}
+
+	return NULL;
 }
 static void command_loop(void)
 {
@@ -345,6 +364,7 @@ static int my_send(char **args)
 }
 static int my_exit(char **args)
 {
+	sensor_on = 0;
     return 0;
 }
 static int my_camera(char **args)
@@ -353,6 +373,9 @@ static int my_camera(char **args)
     camera_take_picture();
     camera_close();
     return 1;
+}
+static int my_sensor(char **args)
+{
 }
 static int my_help(char **args)
 {

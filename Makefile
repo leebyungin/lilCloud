@@ -14,7 +14,7 @@ CXXLIBS = -lpthread -lm -lrt
 CXXFLAGS = $(INCLUDES) -g -O0 -std=c++14
 CXX = g++
 
-objects = main.o system_server.o web_server.o input.o gui.o message.o camera_HAL.o ControlThread.o
+objects = main.o system_server.o web_server.o input.o gui.o message.o camera_HAL.o ControlThread.o communication.o
 
 $(TARGET): $(objects)
 	$(CXX) -o $(TARGET) -rdynamic $(objects)
@@ -42,6 +42,9 @@ camera_HAL.o: $(HAL)/camera_HAL.h $(HAL)/camera_HAL.cpp $(HAL)/ControlThread.cpp
 
 ControlThread.o: $(HAL)/ControlThread.h $(HAL)/ControlThread.cpp
 	$(CXX) -c $(HAL)/ControlThread.cpp $(CXXFLAGS) $(objetcts) -g $(INCLUDES)
+
+communication.o: $(INCLUDE)/communication.c $(INCLUDE)/communication.h
+	$(CC) -c $(INCLUDE)/communication.c -g $(INCLUDES)
 
 clean:
 	rm -rf *.o
