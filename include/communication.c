@@ -89,6 +89,20 @@ static int sync_ack(const char *input_stream, const char *output_stream, const i
 			if(data.echo == MQ_FIN)
 			{
 				ret = 1;
+
+				if(mq_unlink(input_stream) == -1)
+				{
+					perror_handler("[communication.c]: sync_ack: mq_unlink()1 *FAIL*", 0);
+					errno = 0;
+				}
+				pMessage("mq_unlink(%s) *SUCCESS*", input_stream);
+				if(mq_unlink(output_stream) == -1)
+				{
+					perror_handler("[communication.c]: sync_ack:  mq_unlink()2 *FAIL*", 0);
+					errno = 0;
+				}
+				pMessage("mq_unlink(%s) *SUCCESS*", output_stream);
+
 				break;
 			}
 		}
@@ -125,22 +139,7 @@ static int sync_ack(const char *input_stream, const char *output_stream, const i
 		perror_handler("[communication.c]: mq_close()", 0);
 	}
 
-	if(mq_unlink(input_stream) == -1)
-	{
-		if(errno != ENOENT)
-		{
-			perror_handler("[communication.c]: [communication.c]: mq_unlink()1", 0);
-		}
-		errno = 0;
-	}
-	if(mq_unlink(output_stream) == -1)
-	{
-		if(errno != ENOENT)
-		{
-			perror_handler("[communication.c]: [communication.c]: mq_unlink()2", 0);
-		}
-		errno = 0;
-	}
+
 	
 	errno = saved_errno;
 	return 1;

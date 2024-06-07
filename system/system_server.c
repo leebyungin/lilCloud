@@ -262,7 +262,7 @@ void *monitor(void *)
 	msgsize = attr.mq_msgsize;
 
 	//to-do: 센서 정보 터미널 말고 다른 곳으로 출력(너무 더러움)
-	while(1)
+	while(msg.type != MQ_FIN)
 	{
 		key_t key;
 		int shmid;
@@ -294,10 +294,6 @@ void *monitor(void *)
 			{
 				perror_handler("[monitor thread]: shmdt() *FAIL*", 0);
 			}
-		}
-		if(msg.type == MQ_FIN)
-		{
-			break;
 		}
 	}
 
