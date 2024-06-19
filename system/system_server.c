@@ -374,6 +374,6 @@ void *timer_service(void *)
 		}
 
 		alarm_count ++;
-		printf("timer: %d\n", alarm_count);
+		//printf("timer: %d\n", alarm_count);
 	}
 }

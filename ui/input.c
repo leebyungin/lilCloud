@@ -8,6 +8,10 @@
 #include <sys/ipc.h>
 #include <sys/types.h>
 #include <sys/shm.h>
+#include <unistd.h>
+#include <elf.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
 
 #include <system_server.h>
 #include <gui.h>
@@ -33,16 +37,12 @@ static int create_pthread(pthread_t *tid, void *(*start_routine)(void *), void *
 static void *command(void *);
 static void *sensor(void *);
 
-// about command
+// about commands
 static void command_loop(void);
 static char **parse_line(char *line, char *delim);
 static int execute(char **args);
-static int my_shell(char **args);
-static int my_send(char **args);
-static int my_exit(char **args);
-static int my_camera(char **args);
-static int my_sensor(char **args);
-static int my_help(char **args);
+
+// builtin_command[n] => builtin_func[n]
 static char *builtin_command[] =
     {
         "sh",
@@ -50,8 +50,19 @@ static char *builtin_command[] =
         "exit",
         "camera",
 		"sensor",
+		"file",
 		"help"
 	};
+
+// builtin_commands
+static int my_shell(char **args);
+static int my_send(char **args);
+static int my_exit(char **args);
+static int my_camera(char **args);
+static int my_sensor(char **args);
+static int my_file(char **args);
+static int my_help(char **args);
+
 static int builtin_count()
 {
     return sizeof(builtin_command) / sizeof(char *);
@@ -63,6 +74,7 @@ static int (*builtin_func[])(char **arg) =
         &my_exit,
         &my_camera,
 		&my_sensor,
+		&my_file,
 		&my_help
 	};
 
@@ -376,7 +388,58 @@ static int my_camera(char **args)
 }
 static int my_sensor(char **args)
 {
+	sensor_on= 0;
 }
+static int my_file(char **args)
+{
+	int fd;
+	Elf64_Ehdr *addr;
+	char *file = args[1];
+	struct stat statbuf;
+
+	if(access(file, F_OK) != 0)
+	{
+		printf("No such %s file or directory!\n", file);
+		return 1;
+	}
+
+	if((fd = open(file, O_RDONLY)) == -1)
+	{
+		perror_handler("[my_file]: open() *FAIL*",0);
+	}
+
+	if(fstat(fd,&statbuf) == -1)
+	{
+		perror_handler("[my_file]: fstat() *FAIL*", 0);
+	}
+	
+	if(close(fd) == -1)
+	{
+		perror_handler("[my_file]: close() *FAIL*", 0);
+	}
+	
+	if((addr = mmap(0, statbuf.st_size , PROT_READ, MAP_PRIVATE, fd, 0)) == (void *)-1)
+	{
+		perror_handler("[my_file]: mmap() *FAIL*",0);
+	}
+
+	if(addr->e_ident[0] != 0x7f || addr->e_ident[1] != 'E' || addr->e_ident[2] != 'L' || addr->e_ident[3] != 'F')
+	{
+		printf("%s is not a elf\n", args[1]);
+		return 1;
+	}
+
+	printf("\t+ File size: %ld\n", statbuf.st_size);
+	printf("\t+ Object file type: %d\n", addr->e_type);
+	printf("\t+ Architecture: %d\n", addr->e_machine);
+	printf("\t+ Object file version: %d\n", addr->e_version);
+	printf("\t+ Entry point virtual address: %ld\n", addr->e_entry);
+	printf("\t+ Program header table file offset: %ld\n", addr->e_phoff);
+	munmap(addr, 0);
+
+	return 1;
+}
+
 static int my_help(char **args)
 {
 	for(int i = 0; i < builtin_count(); i++)

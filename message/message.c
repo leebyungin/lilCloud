@@ -72,8 +72,8 @@ void error_handler(const char* msg, int bt)
 void perror_handler(const char* msg, int bt)
 {
 	fprintf(stderr, "\33[31m");
-	//to-do: pid 출력하게. 임시로 해둔 거는 msg를 두번 출력함
-	pMessage(msg);
+	//to-do: pid 출력하게. format 입력 가능하게 
+	//pMessage(msg);
 	perror(msg);
 	fprintf(stderr, "\33[37m");
 	if(bt)
