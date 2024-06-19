@@ -213,7 +213,7 @@ void *disk_service(void *)
 
 	buf = malloc(INOTIFY_BUF_LEN);
 	inotify_fd = inotify_init();
-	inotify_add_watch(inotify_fd, MANAGED_DIR, IN_CREATE);
+	inotify_add_watch(inotify_fd, MANAGED_DIR, IN_CREATE |  IN_DELETE);
 
 	while(1)
 	{
