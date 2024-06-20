@@ -7,6 +7,8 @@ public:
     ControlThread();
     ~ControlThread();
     int takePicture();
+	int dumpCamera();
+	
 };
 
 #endif

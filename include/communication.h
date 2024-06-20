@@ -2,7 +2,13 @@
 #define __MESSAGE_TYPE__
 #include <mqueue.h>
 
-#define MQ_FIN 9999
+enum MESSAGE_TYPE
+{
+	MESSAGE_TYPE_BASE = 9900,
+
+	MQ_FIN = MESSAGE_TYPE_BASE,
+	MQ_DUMP
+};
 
 struct msg_t
 {

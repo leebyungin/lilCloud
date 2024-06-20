@@ -22,3 +22,9 @@ int ControlThread::takePicture()
     pMessage("takePicture() (from C++)\n");
     return 0;
 }
+
+int ControlThread::dumpCamera()
+{
+	pMessage("dump! camera info!");
+	return 0;
+}

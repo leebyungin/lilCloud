@@ -19,8 +19,15 @@ int camera_take_picture(void)
     return 0;
 }
 
+int camera_dump(void)
+{
+	return control_thread->dumpCamera();
+}
+
 int camera_close(void)
 {
     delete control_thread;
     return 0;
 }
+
+

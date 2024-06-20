@@ -20,6 +20,7 @@
 #include <web_server.h>
 #include <message.h>
 #include <communication.h>
+#include <camera_HAL.h>
 
 #define TIMER_SEM "/timerSem"
 
@@ -273,28 +274,43 @@ void *monitor(void *)
 		{
 			perror_handler("[monitor tread]: mq_receive() *FAIL*", 0);
 		}
-		pMessage("Message Arrives (type: %d param1: %d param2: %d)",msg.type, msg.param1, msg.param2);
+		//pMessage("Message Arrives(monitor) (type: %d param1: %d param2: %d)",msg.type, msg.param1, msg.param2);
 			
-		if(msg.type == 1)
+		switch(msg.type)
 		{
-			struct sensor_info_t sensor;
-			shmid = msg.param1;
 
-			if((shm = shmat(shmid, NULL, SHM_RDONLY)) == (void *)-1)
-			{
-				perror_handler("[monitor thread]: shmat() *FAIL*", 0);
-			}
+			case 1:
+				struct sensor_info_t sensor;
+				shmid = msg.param1;
 
-			memcpy(&sensor, shm, sizeof(struct sensor_info_t));	
-			pMessage("+ temperature: %f", sensor.temper);
-			pMessage("+ pressure: %f", sensor.press);
-			pMessage("+ humidity: %f", sensor.humid);
+				if((shm = shmat(shmid, NULL, SHM_RDONLY)) == (void *)-1)
+				{
+					perror_handler("[monitor thread]: shmat() *FAIL*", 0);
+				}
 
-			if(shmdt(shm) != 0)
-			{
-				perror_handler("[monitor thread]: shmdt() *FAIL*", 0);
-			}
+				memcpy(&sensor, shm, sizeof(struct sensor_info_t));	
+				pMessage("+ temperature: %f", sensor.temper);
+				pMessage("+ pressure: %f", sensor.press);
+				pMessage("+ humidity: %f", sensor.humid);
+
+				if(shmdt(shm) != 0)
+				{
+					perror_handler("[monitor thread]: shmdt() *FAIL*", 0);
+				}
+
+				break;
+
+			case MQ_DUMP:
+				pMessage("MONITOR dump!");
+				break;
+
+			default:
+				perror_handler("[monitor thread]: Undefined message type!",0);
+				break;
+
 		}
+
+		
 	}
 
 	if(mq_4way_handshake("/sensor_end"))
@@ -312,10 +328,8 @@ void *monitor(void *)
 void *camera_service(void *)
 {
 	mqd_t camera_mq;
+	struct msg_t msg;
 	struct mq_attr attr;
-	char *buff;
-	int msgsize;
-
 	pMessage("Camera_service thread running");
 
 	if((camera_mq = mq_open(CAMERA_MQ, O_RDONLY)) == -1)
@@ -326,20 +340,22 @@ void *camera_service(void *)
 	
 	if(mq_getattr(camera_mq, &attr) == -1)
 	{
-		perror_handler("[camera_service thread]: mq_getatttr() *FAIL*", 0);
+		perror_handler("[camera_service thread]: mq_getattr() *FAIL*", 0);
 	}
-	msgsize = attr.mq_msgsize;
-	buff = (char*)malloc(sizeof(char) * msgsize);
 
 	while(1)
 	{
-		if(mq_receive(camera_mq, buff, msgsize, NULL) == -1)
+		if(mq_receive(camera_mq, (char*)&msg, attr.mq_msgsize, NULL) == -1)
 		{
 			perror_handler("[camera_service thread]: mq_receive() *FAIL*", 0);
 		}
+		
+		if(msg.type == MQ_DUMP)
+		{
+			camera_dump();
+		}
 	}
 
-	free(buff);
 	if(mq_close(camera_mq) == -1)
 	{
 		perror_handler("[camera_service thread]: mq_close() *FAIL*", 0);

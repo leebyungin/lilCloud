@@ -9,9 +9,6 @@
 #include <web_server.h>
 #include <message.h>
 
-//to-do: 매크로 대신 변수나 함수로 교체
-#define MQD_COUNT 4
-
 static void sigchldHandler(int signal);
 
 // 메세지 큐 처리 함수
@@ -114,10 +111,9 @@ static const char * mq_names[] =
 	"/watchdog_mq",
 	"/monitor_mq",
 	"/disk_mq",
-	"/camera_mq"
+	"/camera_mq",
 };
 
-mqd_t mqd_list[MQD_COUNT];
 
 static int mq_count(void)
 {
@@ -138,8 +134,7 @@ static void mq_create(void)
 
 	for(int i = 0; i < mq_count(); i++)
 	{
-		mqd_list[i] = mymq_open(mq_names[i]);
-		if(mqd_list[i] == -1)
+		if(mymq_open(mq_names[i]) == -1)
 		{
 			pMessage("Open mq *FAIL* (%s)", mq_names[i]);
 			perror_handler(mq_names[i], 1);

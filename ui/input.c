@@ -24,7 +24,9 @@
 // #define _DEBUG_
 
 #define MONITOR_MQ "/monitor_mq"
+#define CAMERA_MQ "/camera_mq"
 static mqd_t monitor_mq;
+static mqd_t camera_mq;
 
 // about signal
 static void regist_signal_handler(int signum, void (*handler)(int));
@@ -51,6 +53,7 @@ static char *builtin_command[] =
         "camera",
 		"sensor",
 		"file",
+		"dump",
 		"help"
 	};
 
@@ -62,21 +65,23 @@ static int my_camera(char **args);
 static int my_sensor(char **args);
 static int my_file(char **args);
 static int my_help(char **args);
+static int my_dump(char **args);
 
 static int builtin_count()
 {
     return sizeof(builtin_command) / sizeof(char *);
 }
 static int (*builtin_func[])(char **arg) =
-    {
-        &my_shell,
-        &my_send,
-        &my_exit,
-        &my_camera,
-		&my_sensor,
-		&my_file,
-		&my_help
-	};
+{
+	&my_shell,
+	&my_send,
+	&my_exit,
+	&my_camera,
+	&my_sensor,
+	&my_file,
+	&my_dump,
+	&my_help
+};
 
 static void print_vector(const char **arr);
 static const char *moduleName = "input";
@@ -90,6 +95,7 @@ int input()
     regist_signal_handler(SIGSEGV, segfault_handler);
 
 	monitor_mq = mq_open(MONITOR_MQ, O_RDWR);
+	camera_mq = mq_open(CAMERA_MQ, O_RDWR);
 
     create_pthread(&sensorTid, sensor, NULL);
     create_pthread(&commandTid, command, NULL);
@@ -102,6 +108,10 @@ int input()
 	if(mq_close(monitor_mq) == -1)
 	{
 		perror_handler("mq_close(monitor_mq) *FAIL*",0);
+	}
+	if(mq_close(camera_mq) == -1)
+	{
+		perror_handler("mq_close(camera_mq) *FAIL*",0);
 	}
 
     return 0;
@@ -399,7 +409,7 @@ static int my_file(char **args)
 
 	if(access(file, F_OK) != 0)
 	{
-		printf("No such %s file or directory!\n", file);
+		printf("No such file or directory!\n");
 		return 1;
 	}
 
@@ -460,4 +470,16 @@ static void print_vector(const char **arr)
         pMessage(arr[i]);
         i++;
     }
+}
+
+static int my_dump(char **args)
+{
+	struct msg_t msg;
+
+	msg.type = MQ_DUMP;
+	
+	mq_send(monitor_mq, (char*)&msg, sizeof(struct msg_t), 0);
+	mq_send(camera_mq, (char*)&msg, sizeof(struct msg_t), 0);
+
+	return 1;
 }

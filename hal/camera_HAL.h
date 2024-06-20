@@ -8,6 +8,7 @@ extern "C"{
 int camera_open(void);
 int camera_take_picture(void);
 int camera_close(void);
+int camera_dump(void);
 
 #ifdef __cplusplus
 }
